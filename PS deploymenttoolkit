@@ -1,0 +1,88 @@
+## Commonly used PSADT env variables
+$envCommonDesktop           # C:\Users\Public\Desktop
+$envCommonPrograms          # C:\ProgramData\Microsoft\Windows\Start Menu\Programs
+$envProgramFiles            # C:\Program Files
+$envProgramFilesX86         # C:\Program Files (x86)
+$envProgramData             # c:\ProgramData
+$envUserDesktop             # c:\Users\{user currently logged in}\Desktop
+$envUserStartMenuPrograms   # c:\Users\{user currently logged in}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs
+$envSystemDrive             # c:
+$envWinDir                  # c:\windows
+
+##Installere Adobe Flash
+ #Remove Old version Adobe from programs
+       
+        Get-WmiObject -Class win32_product | ? {$_.Name -like "*Adobe*Flash*"} | % {msiexec /x "$($_.IdentifyingNumber)" /qn /noreboot | Out-Null} -ErrorAction 'Continue'
+ 
+        #Clean up Registry for all old Installation of Adobe Flash (solving problem with (Error exit code 1603)- error 1714.The older version of Adobe cannot be removed)
+ 
+        Try {
+ 
+    $Keys=Get-ChildItem HKCR:Installer -Recurse -ErrorAction Stop | Get-ItemProperty -name ProductName -ErrorAction SilentlyContinue
+ 
+}
+ 
+Catch {
+    New-PSDrive -Name HKCR -PSProvider registry -Root HKEY_CLASSES_ROOT -ErrorAction SilentlyContinue | Out-Null
+    $Keys=Get-ChildItem HKCR:Installer -Recurse | Get-ItemProperty -name ProductName -ErrorAction SilentlyContinue
+    }
+ 
+Finally { 
+    foreach ($Key in $Keys) {
+ 
+        if ($Key.ProductName -like "*Adobe*Flash*") {
+ 
+            Remove-Item $Key.PSPath -Force -Recurse
+ 
+        }
+     }
+ 
+}
+
+Execute-Process -Path "$dirSupportFiles\uninstall_flash_player.exe" -Parameters "-uninstall -force"
+		
+		##*===============================================
+		##* INSTALLATION 
+		##*===============================================
+		[string]$installPhase = 'Installation'
+		
+		## Handle Zero-Config MSI Installations
+		If ($useDefaultMsi) {
+			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Install'; Path = $defaultMsiFile }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
+			Execute-MSI @ExecuteDefaultMSISplat; If ($defaultMspFiles) { $defaultMspFiles | ForEach-Object { Execute-MSI -Action 'Patch' -Path $_ } }
+		}
+		
+		## <Perform Installation tasks here>
+		Execute-MSI -Action Install -Path 'install_flash_player_29_active_x.msi' -parameters "/Q"
+     
+        Execute-MSI -Action Install -Path 'install_flash_player_29_plugin.msi' -parameters "/Q"
+         
+		Execute-MSI -Action Install -Path 'install_flash_player_29_ppapi.msi' -parameters "/Q"
+		##*===============================================
+		##* POST-INSTALLATION
+		##*===============================================
+		[string]$installPhase = 'Post-Installation'
+		
+		## <Perform Post-Installation tasks here>
+   
+    # Set Adobe Flash Config file to stop Auto-Updates (32-bit)
+    Copy-File -Path "$dirSupportFiles\mms.cfg" -Destination "$envWindir\system32\Macromed\Flash\mms.cfg"
+    # Set Adobe Flash Config file to stop Auto-Updates (64-bit)
+    Copy-File -Path "$dirSupportFiles\mms.cfg" -Destination "$envWindir\SysWOW64\Macromed\Flash\mms.cfg"
+
+## kopiere til alle profiler
+## stjålet herfra http://psappdeploytoolkit.com/forums/topic/copy-file-to-all-users-currently-logged-in-and-for-all-future-users/
+$ProfilePaths = Get-UserProfiles | Select-Object -ExpandProperty 'ProfilePath'
+ForEach ($Profile in $ProfilePaths) {
+    Copy-File -Path "$dirFiles\Example\example.ini" -Destination "$Profile\Example\To\Path\"
+    
+   ## kjør exe fil
+   
+   ## *** Examples of exe install***
+Execute-Process -Path '<application>.exe' -Parameters '/quiet' -WaitForMsiExec:$true
+Execute-Process -Path "$dirFiles\DirectX\Setup.exe" -Parameters '/silent' -WindowStyle 'Hidden'
+#open notepad, don't wait for it to close before proceeding (i.e. continue with script)
+Execute-Process -Path "$envSystemRoot\notepad.exe" -NoWait 
+#Execute an .exe, and hide confidential parameters from log file
+$serialisation_params = '-batchmode -quit -serial <aa-bb-cc-dd-ee-ffff11111> -username "<serialisation username>" -password "SuperSecret123"'
+Execute-Process -Path "$envProgramFiles\Application\Serialise.exe" -Parameters "$serialisation_params" -SecureParameters:$True
