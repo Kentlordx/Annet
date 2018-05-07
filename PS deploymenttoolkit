@@ -9,6 +9,14 @@ $envUserStartMenuPrograms   # c:\Users\{user currently logged in}\AppData\Roamin
 $envSystemDrive             # c:
 $envWinDir                  # c:\windows
 
+Installere msi og msp:
+ $currentInstall = Get-InstalledApplication -Name $installAppName
+    $MSI = Get-ChildItem -Path $dirFiles -Filter '*.msi' | Select-Object -ExpandProperty 'Name'
+    $MSP = Get-ChildItem -Path $dirFiles -Filter '*.msp' | Select-Object -ExpandProperty 'Name'
+   
+Execute-MSI -Action 'Install' -Path $MSI
+Execute-MSI -Action 'Patch' -Path $MSP
+
 ##Installere Adobe Flash
  #Remove Old version Adobe from programs
        
